@@ -1,6 +1,6 @@
 {
   "name": "@oneshot101/discord-oauth2",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "A developer-friendly, optimized Discord OAuth2 API package for TypeScript and JavaScript",
   "main": "dist/index.js",
   "module": "dist/index.js",
