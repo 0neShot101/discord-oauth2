@@ -1,6 +1,6 @@
 # discord-oauth2
 
-A modern, type-safe OAuth2 client for Discord. Built with TypeScript. Works in Node.js and Bun.
+A modern, type-safe OAuth2 client for Discord. Built with TypeScript.
 
 [![npm version](https://img.shields.io/npm/v/@oneshot101/discord-oauth2.svg)](https://www.npmjs.com/package/@oneshot101/discord-oauth2)
 
