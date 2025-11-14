@@ -1,15 +1,32 @@
 {
-  "name": "ts",
-  "version": "0.0.1",
-  "description": "t",
+  "name": "@oneshot101/discord-oauth2",
+  "version": "1.0.0",
+  "description": "A developer-friendly, optimized Discord OAuth2 API package for TypeScript and JavaScript",
   "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
   "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
   "scripts": {
     "setup": "bun install && bun run setup.ts",
-    "build": "bun build src/index.ts --outdir dist --target node",
+    "build": "tsc && tsc-alias",
+    "prebuild": "npm run clean",
     "start": "bun dist/index.js",
     "dev": "bun --watch src/index.ts",
-    "clean": "rm -rf dist",
+    "clean": "node -e \"require('fs').rmSync('dist', {recursive: true, force: true})\"",
+    "prepublishOnly": "npm run build",
     "lint": "eslint src/**/*.{ts,tsx} --fix",
     "lint:check": "eslint src/**/*.{ts,tsx}",
     "format": "prettier --write .",
@@ -17,26 +34,41 @@
     "type-check": "tsc --noEmit"
   },
   "keywords": [
-    "bun",
+    "discord",
+    "oauth2",
+    "oauth",
+    "authentication",
+    "authorization",
+    "bot",
+    "discord-api",
     "typescript",
-    "template",
-    "eslint",
-    "prettier",
-    "setup-script"
+    "discord-bot",
+    "discord-oauth",
+    "discord-login",
+    "discord-auth"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/0neShot101/discord-oauth2.git"
+  },
+  "bugs": {
+    "url": "https://github.com/0neShot101/discord-oauth2/issues"
+  },
+  "homepage": "https://github.com/0neShot101/discord-oauth2#readme",
   "author": "Andrew Tandy <andrewtandy12@gmail.com>",
   "license": "MIT",
   "devDependencies": {
     "@types/bun": "latest",
-    "@types/node": "^20.0.0",
-    "@typescript-eslint/eslint-plugin": "^6.0.0",
-    "@typescript-eslint/parser": "^6.0.0",
-    "eslint": "^8.0.0",
-    "eslint-config-prettier": "^9.0.0",
-    "eslint-plugin-import": "^2.0.0",
-    "eslint-plugin-prettier": "^5.0.0",
-    "prettier": "^3.0.0",
-    "typescript": "^5.0.0"
+    "@types/node": "^20.19.25",
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^9.1.2",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-prettier": "^5.5.4",
+    "prettier": "^3.6.2",
+    "tsc-alias": "^1.8.16",
+    "typescript": "^5.9.3"
   },
   "engines": {
     "bun": ">=1.0.0"

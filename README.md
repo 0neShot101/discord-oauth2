@@ -1,131 +1,92 @@
-# TypeScript Project Template
+# discord-oauth2
 
-[![Bun](https://img.shields.io/badge/Bun-000000?style=for-the-badge&logo=bun&logoColor=white)](https://bun.sh)
-[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://typescriptlang.org)
-[![ESLint](https://img.shields.io/badge/ESLint-4B3263?style=for-the-badge&logo=eslint&logoColor=white)](https://eslint.org)
-[![Prettier](https://img.shields.io/badge/Prettier-F7B93E?style=for-the-badge&logo=prettier&logoColor=black)](https://prettier.io)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+A modern, type-safe OAuth2 client for Discord. Built with TypeScript. Works in Node.js and Bun.
 
-> A modern TypeScript project template with Bun runtime, featuring an epic setup wizard and best practices out of the box.
+[![npm version](https://img.shields.io/npm/v/@oneshot101/discord-oauth2.svg)](https://www.npmjs.com/package/@oneshot101/discord-oauth2)
 
-## 🚀 Features
+## Features
 
-- **⚡ Bun Runtime** - Fast package management and bundling
-- **🎯 TypeScript 5.0** - Full type safety with strict configuration
-- **🎨 ESLint + Prettier** - Code quality and consistent formatting
-- **📦 Zero Config** - Works out of the box with sensible defaults
-- **🧙‍♂️ Setup Wizard** - Interactive project initialization with random memes
-- **🔧 VS Code Ready** - Optimized settings and extension recommendations
+- Fully typed with strict TypeScript
+- Zero dependencies
+- Supports all Discord OAuth2 flows
+- Built-in permission utilities
+- ESM & CommonJS compatible
 
-## 🎭 Quick Start
+## Installation
 
-1. **Use this template:**
+```bash
+# npm
+npm install @oneshot101/discord-oauth2
 
-2. **Run the setup wizard:**
+# pnpm
+pnpm add @oneshot101/discord-oauth2
 
-   ```bash
-   bun run setup
-   ```
+# yarn
+yarn add @oneshot101/discord-oauth2
 
-3. **Start developing:**
-   ```bash
-   bun run dev
-   ```
-
-The setup wizard will:
-
-- Configure your project name and description
-- Set up your author information (from git config)
-- Generate a clean `src/index.ts` entry point
-- Create a project-specific README
-- Format everything with Prettier
-- Clean up after itself
-
-## 📋 Available Scripts
-
-| Script                 | Description                      |
-| ---------------------- | -------------------------------- |
-| `bun run setup`        | Run the interactive setup wizard |
-| `bun run dev`          | Development with hot reload      |
-| `bun run build`        | Build for production             |
-| `bun start`            | Run the built application        |
-| `bun run lint`         | Lint and fix code                |
-| `bun run lint:check`   | Check for linting errors         |
-| `bun run format`       | Format code with Prettier        |
-| `bun run format:check` | Check code formatting            |
-| `bun run type-check`   | TypeScript type checking         |
-
-## 🏗️ Project Structure
-
-```
-├── src/
-│   └── index.ts          # Main entry point
-├── .eslintrc.cjs         # ESLint configuration
-├── .prettierrc           # Prettier configuration
-├── .gitattributes        # Git line ending enforcement
-├── .gitignore            # Git ignore rules
-├── .editorconfig         # Editor configuration
-├── tsconfig.json         # TypeScript configuration
-├── package.json          # Dependencies and scripts
-└── setup.ts              # Epic setup wizard (self-deleting)
+# bun
+bun add @oneshot101/discord-oauth2
 ```
 
-## ⚙️ Configuration
+## Quick Start
 
-### TypeScript
+```ts
+import { OAuth2Client } from '@oneshot101/discord-oauth2';
 
-- Strict type checking enabled
-- Modern ES2022 target
-- Path aliases support ready
-- Declaration files generated
+const client = new OAuth2Client({
+  clientId: 'your-client-id',
+  clientSecret: 'your-client-secret',
+  redirectUri: 'https://your-app.com/callback',
+});
 
-### ESLint
+const url = client.generateAuthUrl({
+  scopes: ['identify', 'email'],
+  state: 'csrf-token',
+});
 
-- TypeScript-specific rules
-- Import organization
-- Prettier integration
-- Custom rule preferences
+const tokens = await client.exchangeCode('authorization-code');
+const user = await client.getUser(tokens.access_token);
+console.log(user.username);
+```
 
-### Prettier
+## Bot Authorization
 
-- LF line endings enforced
-- Consistent code formatting
-- Works with ESLint
+```ts
+import { PermissionFlags, calculatePermissions } from '@oneshot101/discord-oauth2';
 
-### VS Code
+const perms = calculatePermissions([PermissionFlags.VIEW_CHANNEL, PermissionFlags.SEND_MESSAGES]);
 
-- Auto-format on save
-- Extension recommendations
-- Workspace settings included
+const url = client.generateBotAuthUrl({ permissions: perms });
+console.log(url);
+```
 
-## 🎨 Code Style
+## Token Management
 
-This template enforces:
+```ts
+const refreshed = await client.refreshToken(tokens.refresh_token);
+await client.revokeToken(tokens.access_token);
+```
 
-- **Arrow functions** preferred over function declarations
-- **const/let** over var (prefer const when possible)
-- **Import organization** with automatic sorting
-- **LF line endings** across all platforms
-- **No trailing semicolons** (handled by Prettier)
-- **Consistent quotes** and spacing
+## Key Methods
 
-## 🛠️ Built With
+- generateAuthUrl()
+- generateBotAuthUrl()
+- exchangeCode()
+- refreshToken()
+- revokeToken()
+- getUser()
+- getUserGuilds()
+- getUserConnections()
+- getClientCredentials()
 
-- [Bun](https://bun.sh) - Fast JavaScript runtime and package manager
-- [TypeScript](https://typescriptlang.org) - Type-safe JavaScript
-- [ESLint](https://eslint.org) - Code quality and consistency
-- [Prettier](https://prettier.io) - Code formatting
+## Permission Utilities
 
-## 📝 License
+- calculatePermissions()
+- hasPermission()
+- getPermissionFlags()
+- PermissionPresets
 
-MIT - see [LICENSE](LICENSE) for details.
+## Links
 
-## 💡 Why This Template?
-
-- **Modern Stack**: Bun + TypeScript for maximum performance and type safety
-- **Developer Experience**: Everything configured for a smooth development workflow
-- **Best Practices**: Follows current TypeScript and Node.js best practices
-- **Fun Setup**: Because setting up projects should be enjoyable, not boring
-- **Zero Bloat**: Only includes what you actually need
-
----
+- GitHub: [https://github.com/0neShot101/discord-oauth2](https://github.com/0neShot101/discord-oauth2)
+- License: MIT

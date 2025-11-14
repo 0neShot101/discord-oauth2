@@ -48,10 +48,11 @@
     "noPropertyAccessFromIndexSignature": false,
 
     // Modules
-    "baseUrl": ".",
     "paths": {
-      // add your path aliases here
+      "@structures/*": ["./structures/*"],
+      "@utils/*": ["./utils/*"]
     },
+    "baseUrl": "./src",
 
     // Emit Rules
     "forceConsistentCasingInFileNames": true,
