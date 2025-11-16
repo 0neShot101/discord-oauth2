@@ -57,7 +57,7 @@ Don't need guild management? Skip the `botToken` field. You can always call `cli
 
 ### Scope-aware token responses
 
-Discord only includes `webhook` and `guild` fields in certain flows. Pass the scopes you requested and the library narrows the response shape for you—no `as const` needed:
+Discord only includes `webhook` and `guild` fields in certain flows. Pass the scopes you requested and the library narrows the response shape for you:
 
 ```ts
 const tokens = await client.exchangeCode('authorization-code', {
