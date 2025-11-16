@@ -1,8 +1,3 @@
-/*
- discord-oauth2 - OAuth2 Client
- Main Discord OAuth2 client implementation
-*/
-
 import { ValidationError } from '@structures/errors';
 import {
   buildUrl,
@@ -17,39 +12,41 @@ import {
 import { HttpClient } from '@utils/http';
 
 import type {
-  AccessTokenResponse,
+  AddGuildMemberOptions,
   AuthorizationInformation,
   AuthorizationUrlOptions,
   BotAuthorizationUrlOptions,
   Connection,
   Guild,
   OAuth2ClientOptions,
+  OAuth2Scope,
   PartialApplication,
+  ScopedAccessTokenResponse,
+  ScopedRefreshableAccessTokenResponse,
+  TokenExchangeOptions,
   TokenTypeHint,
   User,
 } from '@structures/types';
 
 /**
- * Discord OAuth2 Client
+ * High-level wrapper around Discord's OAuth2 endpoints.
  *
- * A TypeScript-friendly, optimized client for Discord's OAuth2 API.
- * Supports all OAuth2 flows: authorization code, implicit, client credentials, bot, and webhook flows.
+ * Handles URL generation, token exchanges, revocations, and helper requests with
+ * strong typing so your app can adopt new scopes and flows without guesswork.
  *
  * @example
  * ```typescript
  * const client = new OAuth2Client({
  *   clientId: 'your-client-id',
  *   clientSecret: 'your-client-secret',
- *   redirectUri: 'https://your-app.com/callback'
+ *   redirectUri: 'https://your-app.com/callback',
  * });
  *
- * // Generate authorization URL
  * const authUrl = client.generateAuthUrl({
  *   scopes: ['identify', 'guilds'],
- *   state: 'random-state-string'
+ *   state: 'csrf-token',
  * });
  *
- * // Exchange authorization code for access token
  * const tokenData = await client.exchangeCode('authorization-code');
  * ```
  */
@@ -58,7 +55,12 @@ export class OAuth2Client {
   private readonly clientSecret: string;
   private readonly redirectUri: string;
   private readonly apiEndpoint: string;
+  private botToken: string | undefined;
 
+  /**
+   * @param options - Credentials and routing information for your OAuth2 application
+   * @throws ValidationError If any required property is missing
+   */
   constructor(options: OAuth2ClientOptions) {
     if (!options.clientId || !options.clientSecret || !options.redirectUri)
       throw new ValidationError('clientId, clientSecret, and redirectUri are required');
@@ -67,20 +69,33 @@ export class OAuth2Client {
     this.clientSecret = options.clientSecret;
     this.redirectUri = options.redirectUri;
     this.apiEndpoint = options.apiEndpoint || DEFAULT_API_ENDPOINT;
+    this.botToken = options.botToken;
   }
 
   /**
-   * Generate an authorization URL for the authorization code grant flow
+   * Supplies or replaces the bot token used for privileged guild operations.
    *
-   * @param options - Authorization URL options
-   * @returns The authorization URL to redirect users to
+   * @param botToken - Bot token from your Discord application
+   * @throws ValidationError If the token is empty
+   */
+  setBotToken(botToken: string): void {
+    if (!botToken) throw new ValidationError('Bot token is required');
+    this.botToken = botToken;
+  }
+
+  /**
+   * Builds the OAuth2 URL that Discord expects for the authorization-code flow.
+   *
+   * @param options - Scopes and optional prompt/state metadata
+   * @returns A fully-qualified authorize URL
+   * @throws ValidationError If no scopes are provided
    *
    * @example
    * ```typescript
    * const url = client.generateAuthUrl({
    *   scopes: ['identify', 'email', 'guilds'],
    *   state: 'csrf-token',
-   *   prompt: 'consent'
+   *   prompt: 'consent',
    * });
    * ```
    */
@@ -104,21 +119,21 @@ export class OAuth2Client {
   }
 
   /**
-   * Generate a bot authorization URL
+   * Builds a bot-install URL, automatically prepending the `bot` scope.
    *
-   * @param options - Bot authorization options
-   * @returns The bot authorization URL
+   * @param options - Permissions, guild targeting, and extra scopes
+   * @returns A Discord authorize URL ready for linking
    *
    * @example
    * ```typescript
    * const url = client.generateBotAuthUrl({
-   *   permissions: '8', // Administrator
-   *   guildId: '123456789012345678'
+   *   permissions: '8',
+   *   guildId: '123456789012345678',
    * });
    * ```
    */
   generateBotAuthUrl(options: BotAuthorizationUrlOptions = {}): string {
-    const scopes = options.scopes ? (['bot', ...options.scopes] as const) : (['bot'] as const);
+    const scopes: OAuth2Scope[] = options.scopes ? ['bot', ...options.scopes] : ['bot'];
 
     const params: Record<string, string | number | boolean | undefined> = {
       'client_id': this.clientId,
@@ -138,10 +153,12 @@ export class OAuth2Client {
   }
 
   /**
-   * Exchange an authorization code for an access token
+   * Exchanges a short-lived authorization code for an access token payload.
    *
    * @param code - The authorization code from the callback
+   * @param options - Optional scope hint to narrow response typing
    * @returns Access token response
+   * @throws ValidationError If no code is supplied
    *
    * @example
    * ```typescript
@@ -150,7 +167,10 @@ export class OAuth2Client {
    * console.log(tokenData.refresh_token);
    * ```
    */
-  async exchangeCode(code: string): Promise<AccessTokenResponse> {
+  async exchangeCode<S extends readonly OAuth2Scope[] | undefined = undefined>(
+    code: string,
+    options?: TokenExchangeOptions<S>,
+  ): Promise<ScopedRefreshableAccessTokenResponse<S>> {
     if (!code) throw new ValidationError('Authorization code is required');
 
     const body = toFormUrlEncoded({
@@ -163,14 +183,17 @@ export class OAuth2Client {
       'Authorization': encodeBasicAuth(this.clientId, this.clientSecret),
     };
 
-    return HttpClient.post<AccessTokenResponse>(DISCORD_OAUTH2_URLS.TOKEN, body, headers);
+    void options?.scopes;
+    return HttpClient.post<ScopedRefreshableAccessTokenResponse<S>>(DISCORD_OAUTH2_URLS.TOKEN, body, headers);
   }
 
   /**
-   * Refresh an access token using a refresh token
+   * Swaps a refresh token for a fresh access token (and optionally a new refresh token).
    *
-   * @param refreshToken - The refresh token
-   * @returns New access token response
+   * @param refreshToken - The refresh token issued from a previous grant
+   * @param options - Optional scope hint to narrow response typing
+   * @returns Updated access token payload
+   * @throws ValidationError If no refresh token is provided
    *
    * @example
    * ```typescript
@@ -178,7 +201,10 @@ export class OAuth2Client {
    * console.log(newToken.access_token);
    * ```
    */
-  async refreshToken(refreshToken: string): Promise<AccessTokenResponse> {
+  async refreshToken<S extends readonly OAuth2Scope[] | undefined = undefined>(
+    refreshToken: string,
+    options?: TokenExchangeOptions<S>,
+  ): Promise<ScopedRefreshableAccessTokenResponse<S>> {
     if (!refreshToken) throw new ValidationError('Refresh token is required');
 
     const body = toFormUrlEncoded({
@@ -190,11 +216,13 @@ export class OAuth2Client {
       'Authorization': encodeBasicAuth(this.clientId, this.clientSecret),
     };
 
-    return HttpClient.post<AccessTokenResponse>(DISCORD_OAUTH2_URLS.TOKEN, body, headers);
+    void options?.scopes;
+
+    return HttpClient.post<ScopedRefreshableAccessTokenResponse<S>>(DISCORD_OAUTH2_URLS.TOKEN, body, headers);
   }
 
   /**
-   * Get client credentials access token (bot owner only)
+   * Requests an application-only token via the client credentials grant.
    *
    * @param scopes - Optional scopes to request
    * @returns Access token response
@@ -204,7 +232,9 @@ export class OAuth2Client {
    * const token = await client.getClientCredentials(['identify', 'connections']);
    * ```
    */
-  async getClientCredentials(scopes?: string[]): Promise<AccessTokenResponse> {
+  async getClientCredentials<S extends readonly OAuth2Scope[] | undefined = undefined>(
+    scopes?: S,
+  ): Promise<ScopedAccessTokenResponse<S>> {
     const body = toFormUrlEncoded({
       'grant_type': 'client_credentials',
       'scope': scopes ? scopes.join(' ') : undefined,
@@ -214,14 +244,15 @@ export class OAuth2Client {
       'Authorization': encodeBasicAuth(this.clientId, this.clientSecret),
     };
 
-    return HttpClient.post<AccessTokenResponse>(DISCORD_OAUTH2_URLS.TOKEN, body, headers);
+    return HttpClient.post<ScopedAccessTokenResponse<S>>(DISCORD_OAUTH2_URLS.TOKEN, body, headers);
   }
 
   /**
-   * Revoke an access token or refresh token
+   * Revokes a previously issued access token or refresh token.
    *
    * @param token - The token to revoke
    * @param tokenTypeHint - Optional hint about token type
+   * @throws ValidationError If no token is provided
    *
    * @example
    * ```typescript
@@ -244,6 +275,41 @@ export class OAuth2Client {
   }
 
   /**
+   * Adds or updates a user within a guild using the bot token and a user access token.
+   *
+   * @param guildId - Guild to add the member to
+   * @param userId - User ID to upsert
+   * @param userAccessToken - OAuth2 access token with the `guilds.join` scope
+   * @param options - Optional nickname/role/voice overrides
+   * @throws ValidationError If required data or bot token is missing
+   */
+  async addUserToGuild(
+    guildId: string,
+    userId: string,
+    userAccessToken: string,
+    options: AddGuildMemberOptions = {},
+  ): Promise<void> {
+    if (!this.botToken) throw new ValidationError('Bot token is required to add members to a guild');
+    if (!guildId) throw new ValidationError('Guild ID is required');
+    if (!userId) throw new ValidationError('User ID is required');
+    if (!userAccessToken) throw new ValidationError('User access token is required');
+
+    const payload = JSON.stringify({
+      'access_token': userAccessToken,
+      'nick': options.nick,
+      'roles': options.roles,
+      'mute': options.mute,
+      'deaf': options.deaf,
+    });
+
+    const headers = {
+      'Authorization': `Bot ${this.botToken}`,
+    };
+
+    await HttpClient.put<void>(`${this.apiEndpoint}/guilds/${guildId}/members/${userId}`, payload, headers);
+  }
+
+  /**
    * Get current bot application information
    *
    * @returns Bot application information
@@ -263,10 +329,11 @@ export class OAuth2Client {
   }
 
   /**
-   * Get current authorization information for a bearer token
+   * Retrieves scopes, user, and application metadata for a bearer token.
    *
-   * @param accessToken - The access token to check
+   * @param accessToken - The access token to inspect
    * @returns Authorization information
+   * @throws ValidationError If no access token is provided
    *
    * @example
    * ```typescript
@@ -286,10 +353,11 @@ export class OAuth2Client {
   }
 
   /**
-   * Helper method to get user information using an access token
+   * Fetches the `/users/@me` resource using a bearer token.
    *
-   * @param accessToken - The access token with identify scope
+   * @param accessToken - The access token with the `identify` scope
    * @returns User information
+   * @throws ValidationError If no access token is provided
    *
    * @example
    * ```typescript
@@ -308,10 +376,11 @@ export class OAuth2Client {
   }
 
   /**
-   * Helper method to get user guilds using an access token
+   * Lists guilds the current user is in via `/users/@me/guilds`.
    *
-   * @param accessToken - The access token with guilds scope
+   * @param accessToken - The access token with the `guilds` scope
    * @returns Array of partial guild objects
+   * @throws ValidationError If no access token is provided
    *
    * @example
    * ```typescript
@@ -330,10 +399,11 @@ export class OAuth2Client {
   }
 
   /**
-   * Helper method to get user connections using an access token
+   * Lists external service connections via `/users/@me/connections`.
    *
-   * @param accessToken - The access token with connections scope
+   * @param accessToken - The access token with the `connections` scope
    * @returns Array of connection objects
+   * @throws ValidationError If no access token is provided
    *
    * @example
    * ```typescript
@@ -351,7 +421,7 @@ export class OAuth2Client {
   }
 
   /**
-   * Parse scopes from a scope string
+   * Splits a Discord scope string (e.g., `"identify email"`) into an array.
    *
    * @param scopeString - Space-separated scope string
    * @returns Array of scopes
@@ -359,7 +429,6 @@ export class OAuth2Client {
    * @example
    * ```typescript
    * const scopes = OAuth2Client.parseScopes('identify email guilds');
-   * // Returns: ['identify', 'email', 'guilds']
    * ```
    */
   static parseScopes(scopeString: string): string[] {

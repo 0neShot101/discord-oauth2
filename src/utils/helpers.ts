@@ -1,8 +1,3 @@
-/*
- discord-oauth2 - Utilities
- Helper functions and constants
-*/
-
 import type { OAuth2Scope } from '@structures/types';
 
 /**

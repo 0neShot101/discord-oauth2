@@ -1,8 +1,3 @@
-/*
- discord-oauth2 - Permission Calculator
- Helper utilities for Discord permission calculations
-*/
-
 /**
  * Discord Permission Flags
  * Based on Discord's permission system
@@ -93,9 +88,9 @@ export const PermissionPresets = {
  * const perms = calculatePermissions([
  *   PermissionFlags.SEND_MESSAGES,
  *   PermissionFlags.EMBED_LINKS,
- *   PermissionFlags.ATTACH_FILES
+ *   PermissionFlags.ATTACH_FILES,
  * ]);
- * // Returns: "120832"
+ * console.log(perms);
  * ```
  */
 export const calculatePermissions = (permissions: (PermissionFlag | bigint)[]): string => {
@@ -113,8 +108,9 @@ export const calculatePermissions = (permissions: (PermissionFlag | bigint)[]): 
  * @example
  * ```typescript
  * const perms = calculatePermissions([PermissionFlags.SEND_MESSAGES, PermissionFlags.EMBED_LINKS]);
- * hasPermission(perms, PermissionFlags.SEND_MESSAGES); // true
- * hasPermission(perms, PermissionFlags.ADMINISTRATOR); // false
+ * const canSend = hasPermission(perms, PermissionFlags.SEND_MESSAGES);
+ * const isAdmin = hasPermission(perms, PermissionFlags.ADMINISTRATOR);
+ * console.log({ canSend, isAdmin });
  * ```
  */
 export const hasPermission = (permissions: string | bigint, flag: PermissionFlag | bigint): boolean => {
@@ -131,7 +127,7 @@ export const hasPermission = (permissions: string | bigint, flag: PermissionFlag
  * @example
  * ```typescript
  * const flags = getPermissionFlags('2048');
- * // Returns: ['SEND_MESSAGES']
+ * console.log(flags);
  * ```
  */
 export const getPermissionFlags = (permissions: string | bigint): string[] => {

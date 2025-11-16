@@ -1,8 +1,3 @@
-/*
- discord-oauth2 - HTTP Client
- Internal HTTP client for Discord API requests
-*/
-
 import { DiscordAPIRequestError } from '@structures/errors';
 
 import type { DiscordAPIError } from '@structures/types';
@@ -11,7 +6,7 @@ import type { DiscordAPIError } from '@structures/types';
  * HTTP request options
  */
 interface RequestOptions {
-  'method': 'GET' | 'POST';
+  'method': 'GET' | 'POST' | 'PUT';
   'headers': Record<string, string>;
   'body'?: string;
 }
@@ -21,7 +16,9 @@ interface RequestOptions {
  */
 export class HttpClient {
   /**
-   * Make a GET request
+   * Issues a GET request with the library's default headers.
+   *
+   * @throws DiscordAPIRequestError When Discord responds with an error status
    */
   static async get<T>(url: string, headers: Record<string, string> = {}): Promise<T> {
     return this.request<T>(url, {
@@ -34,7 +31,9 @@ export class HttpClient {
   }
 
   /**
-   * Make a POST request
+   * Issues a POST request with form-encoded content.
+   *
+   * @throws DiscordAPIRequestError When Discord responds with an error status
    */
   static async post<T>(url: string, body: string, headers: Record<string, string> = {}): Promise<T> {
     return this.request<T>(url, {
@@ -49,36 +48,48 @@ export class HttpClient {
   }
 
   /**
-   * Make an HTTP request
+   * Issues a PUT request with a JSON payload.
+   *
+   * @throws DiscordAPIRequestError When Discord responds with an error status
+   */
+  static async put<T>(url: string, body: string, headers: Record<string, string> = {}): Promise<T> {
+    return this.request<T>(url, {
+      'method': 'PUT',
+      'headers': {
+        'User-Agent': 'discord-oauth2 (https://github.com/0neShot101/discord-oauth2)',
+        'Content-Type': 'application/json',
+        ...headers,
+      },
+      'body': body,
+    });
+  }
+
+  /**
+   * Core request helper shared by the public helpers.
+   *
+   * @throws DiscordAPIRequestError When Discord responds with an error status
    */
   private static async request<T>(url: string, options: RequestOptions): Promise<T> {
     const response = await fetch(url, options);
 
-    // Handle non-2xx responses
     if (!response.ok) {
       let errorData: DiscordAPIError | undefined;
       const contentType = response.headers.get('content-type');
 
-      // Try to parse JSON error response
       if (contentType?.includes('application/json')) {
-        try {
-          errorData = (await response.json()) as DiscordAPIError;
-        } catch {
-          // Ignore JSON parse errors
-        }
+        const parsed = await response.json().catch(() => undefined);
+        if (parsed) errorData = parsed as DiscordAPIError;
       }
 
       const errorMessage = errorData?.message || response.statusText || 'Unknown error';
       throw new DiscordAPIRequestError(errorMessage, response.status, errorData);
     }
 
-    // Parse JSON response
     const contentType = response.headers.get('content-type');
     if (contentType?.includes('application/json')) {
       return (await response.json()) as T;
     }
 
-    // Return empty object if no content
     return {} as T;
   }
 }

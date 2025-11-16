@@ -1,8 +1,3 @@
-/*
- discord-oauth2 - Types
- Discord OAuth2 API type definitions
-*/
-
 /**
  * OAuth2 Grant Types supported by Discord
  */
@@ -24,9 +19,10 @@ export type TokenTypeHint = 'access_token' | 'refresh_token';
 export type PromptType = 'consent' | 'none';
 
 /**
- * Integration/Installation context type
+ * Integration/Installation context type.
+ * 0 = guild install, 1 = user install.
  */
-export type IntegrationType = 0 | 1; // 0 = GUILD_INSTALL, 1 = USER_INSTALL
+export type IntegrationType = 0 | 1;
 
 /**
  * Discord OAuth2 Scopes
@@ -73,6 +69,8 @@ export interface OAuth2ClientOptions {
   'redirectUri': string;
   /** Base API endpoint (default: https://discord.com/api/v10) */
   'apiEndpoint'?: string;
+  /** Optional bot token for guild membership operations */
+  'botToken'?: string;
 }
 
 /**
@@ -114,24 +112,111 @@ export interface BotAuthorizationUrlOptions {
 }
 
 /**
- * Access token response from Discord
+ * Base access token response from Discord
  */
-export interface AccessTokenResponse {
+export interface AccessTokenResponseBase {
   /** The access token */
   'access_token': string;
   /** Token type (always Bearer) */
   'token_type': string;
   /** Expires in seconds */
   'expires_in': number;
-  /** Refresh token (not present in implicit grant) */
-  'refresh_token'?: string;
   /** Granted scopes */
   'scope': string;
-  /** Webhook information (only for webhook.incoming scope) */
-  'webhook'?: WebhookResponse;
-  /** Guild information (only for bot authorization with additional scopes) */
-  'guild'?: Partial<Guild>;
 }
+
+/**
+ * Access token response for flows that yield a refresh token
+ */
+export interface AccessTokenResponseWithRefresh extends AccessTokenResponseBase {
+  /** Refresh token issued alongside the access token */
+  'refresh_token': string;
+}
+
+/**
+ * Access token response when webhook scope is requested
+ */
+export interface AccessTokenResponseWithWebhook extends AccessTokenResponseBase {
+  /** Webhook information (only for webhook.incoming scope) */
+  'webhook': WebhookResponse;
+}
+
+/**
+ * Access token response when bot scope is combined with other scopes
+ */
+export interface AccessTokenResponseWithGuild extends AccessTokenResponseBase {
+  /** Guild information (only for bot authorization with additional scopes) */
+  'guild': Partial<Guild>;
+}
+
+/**
+ * Utility type to determine if a scopes array contains a particular scope
+ */
+export type IncludesScope<
+  Scopes extends readonly OAuth2Scope[] | undefined,
+  Target extends OAuth2Scope,
+> = Scopes extends readonly OAuth2Scope[] ? (Target extends Scopes[number] ? true : false) : false;
+
+/**
+ * Resolve access token response shape based on requested scopes
+ */
+type ScopeAugmentedResponse<Base extends AccessTokenResponseBase, Scopes extends readonly OAuth2Scope[] | undefined> =
+  IncludesScope<Scopes, 'webhook.incoming'> extends true
+    ? IncludesScope<Scopes, 'bot'> extends true
+      ? Base & { 'webhook': WebhookResponse } & { 'guild': Partial<Guild> }
+      : Base & { 'webhook': WebhookResponse }
+    : IncludesScope<Scopes, 'bot'> extends true
+      ? Base & { 'guild': Partial<Guild> }
+      : Base;
+
+export type AccessTokenResponseForScopes<Scopes extends readonly OAuth2Scope[] | undefined> = ScopeAugmentedResponse<
+  AccessTokenResponseBase,
+  Scopes
+>;
+
+export type RefreshableAccessTokenResponseForScopes<Scopes extends readonly OAuth2Scope[] | undefined> =
+  ScopeAugmentedResponse<AccessTokenResponseWithRefresh, Scopes>;
+
+/**
+ * Default access token response type when scopes are unknown
+ */
+export type AccessTokenResponse = AccessTokenResponseBase & {
+  'refresh_token'?: string;
+  'webhook'?: WebhookResponse;
+  'guild'?: Partial<Guild>;
+};
+
+/**
+ * Options to help narrow token response typing when exchanging or refreshing tokens
+ */
+export interface TokenExchangeOptions<Scopes extends readonly OAuth2Scope[] | undefined = undefined> {
+  scopes: Scopes;
+}
+
+/**
+ * Options when forcing a member into a guild via bot token
+ */
+export interface AddGuildMemberOptions {
+  /** Nickname to set for the joined member */
+  'nick'?: string;
+  /** Role IDs to grant immediately */
+  'roles'?: string[];
+  /** Whether to mute the member in voice channels */
+  'mute'?: boolean;
+  /** Whether to deafen the member in voice channels */
+  'deaf'?: boolean;
+}
+
+/**
+ * Helper type that resolves to the correct token response based on provided scopes
+ */
+export type ScopedAccessTokenResponse<Scopes extends readonly OAuth2Scope[] | undefined> =
+  Scopes extends readonly OAuth2Scope[] ? AccessTokenResponseForScopes<Scopes> : AccessTokenResponse;
+
+export type ScopedRefreshableAccessTokenResponse<Scopes extends readonly OAuth2Scope[] | undefined> =
+  Scopes extends readonly OAuth2Scope[]
+    ? RefreshableAccessTokenResponseForScopes<Scopes>
+    : AccessTokenResponse & { 'refresh_token': string };
 
 /**
  * Webhook response embedded in access token
@@ -355,8 +440,8 @@ export interface Connection {
   'show_activity': boolean;
   /** Whether this connection has a corresponding third party OAuth2 token */
   'two_way_link': boolean;
-  /** Visibility of this connection */
-  'visibility': 0 | 1; // 0 = none, 1 = everyone
+  /** Visibility of this connection (0 = none, 1 = everyone) */
+  'visibility': 0 | 1;
 }
 
 /**

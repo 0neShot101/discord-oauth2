@@ -1,9 +1,3 @@
-/*
- discord-oauth2
- A developer-friendly, optimized Discord OAuth2 API package
- Created: 11/13/2025
-*/
-
 export { OAuth2Client } from '@structures/client';
 export { ConfigurationError, DiscordAPIRequestError, OAuth2Error, ValidationError } from '@structures/errors';
 export { DEFAULT_API_ENDPOINT, DISCORD_OAUTH2_URLS } from '@utils/helpers';
@@ -17,6 +11,12 @@ export {
 
 export type {
   AccessTokenResponse,
+  AccessTokenResponseBase,
+  AccessTokenResponseForScopes,
+  AccessTokenResponseWithGuild,
+  AccessTokenResponseWithRefresh,
+  AccessTokenResponseWithWebhook,
+  AddGuildMemberOptions,
   AuthorizationInformation,
   AuthorizationUrlOptions,
   BotAuthorizationUrlOptions,
@@ -32,6 +32,9 @@ export type {
   PromptType,
   ResponseType,
   Role,
+  ScopedAccessTokenResponse,
+  ScopedRefreshableAccessTokenResponse,
+  TokenExchangeOptions,
   TokenTypeHint,
   User,
   WebhookResponse,

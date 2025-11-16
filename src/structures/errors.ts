@@ -1,8 +1,3 @@
-/*
- discord-oauth2 - Errors
- Custom error classes for Discord OAuth2
-*/
-
 import type { DiscordAPIError } from './types';
 
 /**
