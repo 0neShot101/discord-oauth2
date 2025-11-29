@@ -16,8 +16,7 @@
 
 - **Typed front to back.** Requests, responses, and even optional webhook payloads mirror Discord's docs, so autocomplete tells you what's safe to access.
 - **One client, all flows.** Authorization code, implicit, client credentials, bot installs, and webhook grants live behind a single interface.
-- **Zero fluff runtime.** No dependencies and tiny output whether you're shipping to Node, Bun, Deno, or the edge.
-- **Node, Deno, Bun ready.** npm/pnpm/yarn, Deno's `npm:` specifiers, and Bun all use the same strongly-typed API.
+- **Zero fluff runtime.** No dependencies and tiny output.
 - **Smart helpers.** Scope parsing, permission math, and URL builders trim the glue code that usually clutters OAuth integrations.
 - **Bot-token aware.** Pass a bot token once and call `addUserToGuild` the moment someone completes the `guilds.join` flow.
 
