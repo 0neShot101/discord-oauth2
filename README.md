@@ -1,17 +1,25 @@
 # discord-oauth2
 
-`discord-oauth2` is a TypeScript-first companion for Discord's OAuth2 endpoints. It wraps every flow (auth code, bot installs, client credentials, webhooks) with predictable typings so you can focus on your product instead of juggling HTTP calls.
+<p align="center">
+  <a href="https://www.npmjs.com/package/@oneshot101/discord-oauth2"><img src="https://img.shields.io/npm/v/@oneshot101/discord-oauth2?style=for-the-badge&logo=npm&logoColor=white" alt="npm version"></a>
+  <a href="https://www.npmjs.com/package/@oneshot101/discord-oauth2"><img src="https://img.shields.io/npm/dm/@oneshot101/discord-oauth2?style=for-the-badge&logo=npm&logoColor=white" alt="npm downloads"></a>
+  <a href="https://bun.sh"><img src="https://img.shields.io/badge/Bun-000000?style=for-the-badge&logo=bun&logoColor=white" alt="Runs on Bun"></a>
+  <a href="https://typescriptlang.org"><img src="https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript"></a>
+  <a href="https://eslint.org"><img src="https://img.shields.io/badge/ESLint-4B3263?style=for-the-badge&logo=eslint&logoColor=white" alt="ESLint"></a>
+  <a href="https://prettier.io"><img src="https://img.shields.io/badge/Prettier-F7B93E?style=for-the-badge&logo=prettier&logoColor=black" alt="Prettier"></a>
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge" alt="License: MIT"></a>
+</p>
 
-[![npm version](https://img.shields.io/npm/v/@oneshot101/discord-oauth2.svg)](https://www.npmjs.com/package/@oneshot101/discord-oauth2)
+`discord-oauth2` is a TypeScript-first toolkit that smooths over every Discord OAuth2 flow (auth code, client credentials, webhooks, bot installs) so you can focus on your product instead of juggling HTTP spec details.
 
-## Features
+## Highlights
 
-- **Strict typing from end to end.** Every request and response tracks Discord's docs, including conditional webhook fields and refresh-token guarantees.
-- **Tiny, dependency-free core.** Nothing extra ships in your bundle.
-- **All flows covered.** Authorization code, implicit, client credentials, bot installs, and webhook grants live under one interface.
-- **Built-in niceties.** Helpers for permissions, scope parsing, and URL building keep glue code out of your app.
-- **Bot-token aware.** Pass a bot token once and call `addUserToGuild` whenever someone completes the `guilds.join` flow.
-- **ESM & CJS ready.** Works in Bun, Node, or any modern runtime.
+- **Typed front to back.** Requests, responses, and even optional webhook payloads mirror Discord's docs, so autocomplete tells you what's safe to access.
+- **One client, all flows.** Authorization code, implicit, client credentials, bot installs, and webhook grants live behind a single interface.
+- **Zero fluff runtime.** No dependencies and tiny output whether you're shipping to Node, Bun, Deno, or the edge.
+- **Node, Deno, Bun ready.** npm/pnpm/yarn, Deno's `npm:` specifiers, and Bun all use the same strongly-typed API.
+- **Smart helpers.** Scope parsing, permission math, and URL builders trim the glue code that usually clutters OAuth integrations.
+- **Bot-token aware.** Pass a bot token once and call `addUserToGuild` the moment someone completes the `guilds.join` flow.
 
 ## Installation
 
@@ -29,7 +37,7 @@ yarn add @oneshot101/discord-oauth2
 bun add @oneshot101/discord-oauth2
 ```
 
-## Quick Start
+## Quick start
 
 ```ts
 import { OAuth2Client } from '@oneshot101/discord-oauth2';
@@ -51,13 +59,11 @@ const user = await client.getUser(tokens.access_token);
 console.log(user.username);
 ```
 
-That snippet boots the client, produces a login URL, exchanges the returned code, and finally fetches the logged-in user's profile. Every step benefits from autocomplete and compile-time checks.
-
-Don't need guild management? Skip the `botToken` field. You can always call `client.setBotToken()` later when you start inviting people automatically.
+That snippet spins up the client, builds an auth URL, exchanges the returned code, and fetches the user's profile. Need to keep guild operations separate? Skip `botToken` for now and call `client.setBotToken()` later.
 
 ### Scope-aware token responses
 
-Discord only includes `webhook` and `guild` fields in certain flows. Pass the scopes you requested and the library narrows the response shape for you:
+Discord only returns `webhook` and `guild` payloads for specific scopes. Pass the scopes you requested and the response type narrows automatically:
 
 ```ts
 const tokens = await client.exchangeCode('authorization-code', {
@@ -71,7 +77,14 @@ const refreshed = await client.refreshToken(tokens.refresh_token!, {
 });
 ```
 
-## Bot Authorization
+## Covering the Discord flows
+
+- `generateAuthUrl` and `exchangeCode` cover human login flows with CSRF-safe state params.
+- `getClientCredentials` creates app-only tokens for server-to-server calls.
+- `generateBotAuthUrl` produces the installer link for bots and can pre-select guilds or scopes.
+- `getUser`, `getUserGuilds`, and `getUserConnections` fetch user data once you have a token.
+
+## Bot authorization & permissions
 
 ```ts
 import { PermissionFlags, calculatePermissions } from '@oneshot101/discord-oauth2';
@@ -82,20 +95,20 @@ const url = client.generateBotAuthUrl({ permissions: perms });
 console.log(url);
 ```
 
-`generateBotAuthUrl` automatically includes the `bot` scope and can tack on extra scopes when you need them. Hand it a guild ID to pre-select a server or pass a `state` string for CSRF protection.
+`generateBotAuthUrl` automatically includes the `bot` scope, adds anything else you pass, and keeps permission bit math easy to reason about.
 
-## Token Management
+## Token management
 
 ```ts
 const refreshed = await client.refreshToken(tokens.refresh_token);
 await client.revokeToken(tokens.access_token);
 ```
 
-`refreshToken` swaps stale tokens for fresh ones (and keeps `refresh_token` typed), while `revokeToken` invalidates leaked credentials in a single call.
+Use `refreshToken` when Discord hands you a fresh pair, and `revokeToken` when you want to invalidate leaked credentials in one call.
 
 ## Add members to guilds
 
-If you pass a bot token (either in the constructor or later via `client.setBotToken()`), you can upsert users into a guild using the access token they granted your app (`guilds.join` scope required):
+Provide a bot token (up front or later via `client.setBotToken()`) and you can upsert members with the access token they granted your app (`guilds.join` scope required):
 
 ```ts
 const memberTokens = await client.exchangeCode('authorization-code', {
@@ -109,34 +122,16 @@ await client.addUserToGuild('123456789012345678', user.id, memberTokens.access_t
 });
 ```
 
-Behind the scenes the client issues the `PUT /guilds/{guild}/members/{user}` call with your bot token so you can gate communities or premium servers without juggling extra HTTP code.
+Behind the scenes the client issues the `PUT /guilds/{guild}/members/{user}` call with your bot token so you can gate communities or premium servers without extra HTTP plumbing.
 
-## Key Methods
+## Permission helpers
 
-- generateAuthUrl()
-- generateBotAuthUrl()
-- exchangeCode()
-- refreshToken()
-- revokeToken()
-- getUser()
-- getUserGuilds()
-- getUserConnections()
-- getClientCredentials()
-- setBotToken()
-- addUserToGuild()
+- `calculatePermissions()`
+- `hasPermission()`
+- `getPermissionFlags()`
+- `PermissionPresets`
 
-### Handy extras
-
-- `OAuth2Client.parseScopes()` turns a raw scope string into an array for storage.
-- Permission helpers (`calculatePermissions`, `hasPermission`, `getPermissionFlags`) keep bit math approachable.
-- `DISCORD_OAUTH2_URLS` and `DEFAULT_API_ENDPOINT` are exported if you need to build custom calls.
-
-## Permission Utilities
-
-- calculatePermissions()
-- hasPermission()
-- getPermissionFlags()
-- PermissionPresets
+They ship alongside `OAuth2Client.parseScopes()`, `DISCORD_OAUTH2_URLS`, and `DEFAULT_API_ENDPOINT` so you can keep custom flows strongly typed.
 
 ## Links
 
